@@ -1,3 +1,4 @@
 env
 aps.json
 *.cap
+handshakes/*.cap

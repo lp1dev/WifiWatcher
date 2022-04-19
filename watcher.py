@@ -17,7 +17,7 @@ async def check_pcap(cap_file, bssid):
     out, err = p.communicate()
     if '1 handshake' in out.decode() or '2 handshake' in out.decode():
         with open(cap_file, 'rb') as f:
-            with open('%s_handshake.cap' %bssid, 'ab+') as f2:
+            with open('handshakes/%s_handshake.cap' %bssid, 'ab+') as f2:
                 f2.write(f.read())
         return True
     return False
@@ -133,7 +133,7 @@ async def scan(wait=10):
         pdb.insert(ldb[AP.bssid])
         print('LDB dump', ldb)
         print('Sleeping to stay stealthy')
-        await asyncio.sleep(360) # we sleep in order not to make too much noise
+        await asyncio.sleep(30) # we sleep in order not to make too much noise
 
 def main():
     while True:
