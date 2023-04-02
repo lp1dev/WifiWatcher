@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-ifconfig wlan2 down
-macchanger -r wlan2
-ifconfig wlan2 up
-./env/bin/python3 watcher.py
+IFACE=wlan1
+ifconfig $IFACE down
+macchanger -r $IFACE
+ifconfig $IFACE up
+./env/bin/python3 watcher.py $IFACE

